@@ -11,6 +11,21 @@ A = dlmread('TesteKriging_Parametrizado.txt');
 %Longitude  (Decimal)           Distance East or West of the Greenwich 
 %Wind Basic Speed (m/s)
 
+%% Parameterizing input data
+
+meanX = mean(A(:,1));
+stdX = std(A(:,1));
+
+meanY = mean(A(:,2));
+stdY = std(A(:,2));
+
+meanVV = mean(A(:,3));                  %meanVV stands for mean of the Variable Vector
+stdVV = std(A(:,3));                    %stdVV stands for standard deviaton of the Variable Vector 
+
+A(:,1) = (A(:,1)-meanX)./stdX;
+A(:,2) = (A(:,2)-meanY)./stdY;
+% A(:,3) = (A(:,3)-meanVV)./stdVV;
+
 %% Comparing the input data with normal distribution
 %% Searching For Significant Trends
 
@@ -25,8 +40,7 @@ sort_data(A);
 %calculated
 
 x = min(A(:,3)):0.01:max(A(:,3));
-meanVV = mean(A(:,3));                  %meanVV stands for mean of the Variable Vector
-stdVV = std(A(:,3));                    %stdVV stands for standard deviaton of the Variable Vector 
+
 
 %Doing the histogram
 figure
@@ -36,7 +50,7 @@ h = histogram(A(:,3),'Normalization','pdf');
 %In this case was set 6 columns
 h.BinWidth = (max(A(:,3)) - min(A(:,3)))/5;
 hold on
-plot(x,normpdf(x,meanVV,stdVV))
+plot(x,normpdf(x, meanVV, stdVV)) %Once our data has been nomalized we must compare this with the standard normal
 
 %Setting labels
 xlabel('Z')
@@ -51,9 +65,6 @@ qqplot(A(:,3))
 
 %% KS - Test
 
-%Transform data into standard normal results
-x = (A(:,3)-meanVV)/(stdVV);
-
 %Null-hypothesis (is this data well represented by a normal distribution?)
 %If h = 1, this indicates the rejection of the null hypothesis at the Alpha
 %significance level.
@@ -63,20 +74,20 @@ x = (A(:,3)-meanVV)/(stdVV);
 %level
 
 
-[h,p] = kstest(x);
+[h,p] = kstest(A(:,3));
 %what is the p-value? p-value of the test, returned as a scalar value in
 %the range [0,1]. Small values of p cast doubt on the validity of the null
 %hypothesis.
 
 %Create a CDF based on the empirical results (x)
-[f,x_values] = ecdf(x);
+[f,x_values] = ecdf(A(:,3));
 
 figure
 P1 = plot(x_values,f);
 hold on;
 
 %Plot a standard normal CDF (mean=0 and std=1)
-P2 = plot(x_values,normcdf(x_values,0,1),'r-');
+P2 = plot(x_values,normcdf(x_values,meanVV,stdVV),'r-');
 
 %Setting Graph parameters
 title('Cumulative Distribution Function')
@@ -140,8 +151,8 @@ end
 
 
 %These are the LAGs 
-spc = 1000; %space between lags
-LAG = linspace(0, 0.5*(roundn(max(LAGM(:,1)), round(log10(max(LAGM(:,1)))))), ((0.5*(roundn(max(LAGM(:,1)), round(log10(max(LAGM(:,1)))))))/spc +1));
+spc = 0.5; %space between lags
+LAG = linspace(0, 0.5*max(10,(roundn(max(LAGM(:,1)), round(log10(max(LAGM(:,1))))))), ((0.5*max(10,(roundn(max(LAGM(:,1)), round(log10(max(LAGM(:,1))))))))/spc +1));
 % This formula rounds the lags to distances like 10,20 or 100,200 or
 % 1000,2000 and so on. 
 
@@ -169,42 +180,53 @@ for i = 1:length(LAG)
         end
     end
     
-    %The 'Weight' vector will be further used. It stores how many points
-    %each lag has
-    Weight(i,1) = k-1;
-     
-    %Calculating the semivariance
-    aux = 0;
-    for a = 1:k-1
-        aux = aux + (HEAD(a,1) - TAIL(a,1))^2;
-    end
-    SVV(i,1) = aux/(2*(k-1));
-    
-    %Calculating the covariance
-    mtail = mean(TAIL);
-    mhead = mean(HEAD);
-    aux=0;
-    for a = 1:k-1
-        aux = aux+ TAIL(a,1)*HEAD(a,1);
-    end
-    aux = aux/(k-1);
-    COVV(i,1) = aux-mtail*mhead;
-    
-    %Calculating the correlation
-    aux = 0;
-    for a = 1:k-1
-        aux = aux + (TAIL(a,1)-mtail)^2;
-    end
-    sdtail = aux/(k-1);
+    if k > 1
+        
+        %The 'Weight' vector will be further used. It stores how many points
+        %each lag has
+        Weight(i,1) = k-1;
 
-    aux = 0;
-    for a = 1:k-1
-        aux = aux + (HEAD(a,1)-mtail)^2;
-    end
-    sdhead = aux/(k-1);
+        %Calculating the semivariance
+        aux = 0;
+        for a = 1:k-1
+            aux = aux + (HEAD(a,1) - TAIL(a,1))^2;
+        end
+        SVV(i,1) = aux/(2*(k-1));
 
-    CORRV(i,1) = COVV(i,1)/(sqrt(sdtail*sdhead));
+        %Calculating the covariance
+        mtail = mean(TAIL);
+        mhead = mean(HEAD);
+        aux=0;
+        for a = 1:k-1
+            aux = aux+ TAIL(a,1)*HEAD(a,1);
+        end
+        aux = aux/(k-1);
+        COVV(i,1) = aux-mtail*mhead;
+
+        %Calculating the correlation
+        aux = 0;
+        for a = 1:k-1
+            aux = aux + (TAIL(a,1)-mtail)^2;
+        end
+        sdtail = aux/(k-1);
+
+        aux = 0;
+        for a = 1:k-1
+            aux = aux + (HEAD(a,1)-mtail)^2;
+        end
+        sdhead = aux/(k-1);
+
+        CORRV(i,1) = COVV(i,1)/(sqrt(sdtail*sdhead));
+    
+    end
+    
 end
+
+LAG = transpose(removerows(LAG', find(Weight == 0)));
+SVV = removerows(SVV, find(Weight == 0));
+COVV = removerows(COVV, find(Weight == 0));
+CORRV = removerows(CORRV, find(Weight == 0));
+Weight = removerows(Weight, find(Weight == 0));
 
 %Setting Graph Parameters
 figure
@@ -295,13 +317,13 @@ sill = sill_evaluation(A, LAGM);
 
 %Modeling Shperical Model to plot
 clear x;
-x=0:0.1:max(LAG);
-
+x=0:0.01:max(LAG);
+Sphericalmodel = zeros(1,length(x));
 for i=1:length(x)
     if x(1,i)<Sphericalmodel_range
-        Sphericalmodel(i,1)=sill*(1.5*(x(1,i)/Sphericalmodel_range) - 0.5*(x(1,i)/Sphericalmodel_range)^3);
+        Sphericalmodel(1,i)=sill*(1.5*(x(1,i)/Sphericalmodel_range) - 0.5*(x(1,i)/Sphericalmodel_range)^3);
     else
-        Sphericalmodel(i,1)=sill;
+        Sphericalmodel(1,i)=sill;
     end
 end
 
@@ -326,7 +348,7 @@ scatter(LAG, SVV)
 %Setting Graph parameters
 title('Semivariograms Models')
 xlabel('Lag (km)')
-ylabel('Semivariance (mÂ²/sÂ²)')
+ylabel('Semivariance (m²/s²)')
 
 %Setting legend parameters
 legend('Exponential Model','Spherical Model', 'Gaussian Model', 'Semivariance');
@@ -342,26 +364,28 @@ hold on;
 plot(x, Sphericalmodel)
 title('Semivariogram - Spherical Model')
 xlabel('Lag (km)')
-ylabel('Semivariance (mÂ²/sÂ²)')
+ylabel('Semivariance (m²/s²)')
 
 %%
 %% Creating grid before kriging
 
 
-griddist=100; %This number determines, indirectly, how many points will be
+griddist=0.01; %This number determines, indirectly, how many points will be
 %interpolated, i.e., the greater this number is the finer your grid will
 %be. 
-DSX=linspace(0, max(A(:,1)), ((max(A(:,1))/griddist)+1));
-DSY=linspace(0, max(A(:,2)),((max(A(:,2))/griddist)+1));
+DSX=linspace(min(A(:,1)), max(A(:,1)), ((max(A(:,1))/griddist)+1));
+DSY=linspace(min(A(:,2)), max(A(:,2)),((max(A(:,2))/griddist)+1));
 
 %This loop creates a grid by combining the discretized values of DSX and
 %DSY
-a=1;
-for i=1:(max(A(:,1))/griddist +1)
-    for j=1:(max(A(:,2))/griddist +1)
-        DS(a,1)=DSX(1,i);
-        DS(a,2)=DSY(1,j);
-        a=a+1;
+a = 1;
+DS = zeros(length(DSX)*length(DSY), 2);
+
+for i = 1:(max(A(:,1))/griddist +1)
+    for j = 1:(max(A(:,2))/griddist +1)
+        DS(a,1) = DSX(1,i);
+        DS(a,2) = DSY(1,j);
+        a = a+1;
     end
 end
 
@@ -382,19 +406,17 @@ end
 
 [Z_ok, Z_std_ok] = kriging_ordinary(sill, Sphericalmodel_range, 'spherical', A, DS, DM);
 
+%% Deparametrizing output data
 
-%% 
+DS(:,1) = DS(:,1)*stdX + meanX;
+DS(:,2) = DS(:,2)*stdY + meanY;
 %% Setting Plot Parameters - Variable after Simple Kriging Process
-
-% clear x y
-% x = DS(:,1);
-% y = DS(:,2);
 
 %The creation of X and Y intends to create a finer grid in order to get a 
 %smoother surface at the end of the process. Still thinking of a smooth 
 %surface, it is worth saying that the chosen interpolation method was the
 %cubic one.
-resolution=100;
+resolution = 100;
 range_x = min(DS(:,1)):resolution:max(DS(:,1));
 range_y = min(DS(:,2)):resolution:max(DS(:,2));
 [X,Y] = meshgrid(range_x,range_y);
@@ -486,3 +508,19 @@ caxis([min(min(Z_std_sk(:)),min(Z_std_ok(:))) max(max(Z_std_sk(:)),max(Z_std_ok(
 title('Ordinary Kriging Standard Deviation')
 xlabel('')
 ylabel('')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

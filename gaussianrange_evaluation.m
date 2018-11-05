@@ -1,7 +1,7 @@
 function [Gaussianmodel_range, r2gaussian] = gaussianrange_evaluation(DM,LAG, sill, SVV, Weight )
 
 %This step creates the DSX vector
-DSX=linspace(0, max(max(DM(:))), ((max(max(DM(:))))+1));
+DSX=linspace(0, max(max(DM(:))), ((max(max(DM(:))))+1000));
 
 %This loop replaces several times the LAG variable of the Gaussian Model 
 %with a  value (from DSX).  After each replacement the loop measures how 
