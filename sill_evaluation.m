@@ -1,4 +1,4 @@
-function sill = sill_evaluation(A, LAGM)
+function sill = sill_evaluation(A,LAGM)
 
 k=1;
 
